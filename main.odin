@@ -3,6 +3,7 @@ package main
 import rl "vendor:raylib"
 import "core:fmt"
 import "core:mem"
+import "core:strings"
 
 Width :: 1280 
 Height :: 960 
@@ -32,22 +33,38 @@ main :: proc(){
     node.footer_rect = rect_without_outline(slice_rect_ver(node.rect, footer_rel_size, header_rel_size + body_rel_size))
     node.add_icon_rect = {node.footer_rect.x + node.footer_rect.width - 72.0, node.footer_rect.y + node.footer_rect.height  - 72.0, 64.0, 64.0}
 
+    buf: [dynamic]rl.KeyboardKey
     for !rl.WindowShouldClose(){
 
         node_update(&node)
-        if rl.IsKeyPressed(.B) && node.elements < 10{
-            node.elements += 1
+        if rl.IsKeyPressed(.N) && len(node.elements) < 10 && !node.writing_task{
+            node.writing_task = true 
         }
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.Color{214, 214, 214, 255})
 
         node_render(node)
+        if node.writing_task{
+            if str, ok := input_panel("Write a task", &buf); ok{
+                append(&node.elements, strings.clone(str))
+                node.writing_task = false
+            }
+        }
 
         rl.EndDrawing()
 
         free_all(context.temp_allocator)
     }
+    delete(buf)
+    for element in node.elements{
+        delete(element)
+    }
+    delete(node.elements)
 
     rl.CloseWindow()
+
+    for key, value in tracking_allocator.allocation_map{
+        fmt.printf("%v: Leaked %v bytes\n", value.location, value.size)
+    }
 }
