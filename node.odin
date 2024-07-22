@@ -5,6 +5,11 @@ import rl "vendor:raylib"
 import "core:strings"
 import "core:fmt"
 
+MaxElementDisplay :: 10
+//settings those two up and the start of the program
+ElementHeight := f32(0)
+BatchHeight := f32(0)
+
 Element :: struct{
     element_rect: rl.Rectangle,
     checkbox_rect: rl.Rectangle,
@@ -15,19 +20,37 @@ Element :: struct{
 add_element :: proc(node: ^Node, name: string){
     element: Element
 
-    element_height := node.body_rect.height / 10
-    element_rect_with_outline := rl.Rectangle{node.body_rect.x, node.body_rect.y + f32(len(node.elements)) * element_height,node.body_rect.width, element_height}
+    element_rect_with_outline := rl.Rectangle{node.body_rect.x, node.body_rect.y + node.horizontal_cursor, node.body_rect.width, ElementHeight}
+    node.horizontal_cursor += ElementHeight 
     element.element_rect = rect_without_outline(element_rect_with_outline)
     element.checkbox_rect, element.task_rect = slice_rect(element.element_rect, 0.1)
     element.task = name
     append(&node.elements, element)
 }
 
+/*
 regenerate_element_rects :: proc(body_rect: rl.Rectangle, element: ^Element, i: int){
-    element_height := body_rect.height / 10
-    element_rect_with_outline := rl.Rectangle{body_rect.x, body_rect.y + f32(i) * element_height, body_rect.width, element_height}
+    element_rect_with_outline := rl.Rectangle{body_rect.x, body_rect.y + f32(i) * ElementHeight, body_rect.width, ElementHeight}
     element.element_rect = rect_without_outline(element_rect_with_outline)
     element.checkbox_rect, element.task_rect = slice_rect(element.element_rect, 0.1)
+}
+*/
+
+Batch :: struct{
+    indicies: [dynamic]int,
+    name: string,
+    rect_with_outline: rl.Rectangle,
+    rect: rl.Rectangle,
+}
+
+add_batch :: proc(node: ^Node, name: string){
+    batch: Batch
+    batch.name = name
+    batch.rect_with_outline = rl.Rectangle{node.body_rect.x, node.body_rect.y + node.horizontal_cursor, node.body_rect.width, BatchHeight} 
+    node.horizontal_cursor += BatchHeight
+    batch.rect = rect_without_outline(batch.rect_with_outline)
+
+    append(&node.batches, batch)
 }
 
 Node :: struct{
@@ -39,11 +62,12 @@ Node :: struct{
     header_color: rl.Color,
 
     body_rect: rl.Rectangle,
-    //elements: [dynamic]Element,
+    horizontal_cursor: f32,
+    elements: [dynamic]Element,
     writing_task: bool,
     adding_batch: bool,
 
-    batches: [dynamic][dynamic]Element,
+    batches: [dynamic]Batch,
 
     footer_rect: rl.Rectangle,
 
@@ -63,10 +87,7 @@ node_update :: proc(node: ^Node){
         node.add_icon_color = rl.GRAY
 
         if rl.IsMouseButtonPressed(.LEFT){
-            if len(node.batches[0]) < 10{
-                //node.writing_task = true
-                node.clicked_add_icon = !node.clicked_add_icon 
-            }
+            node.clicked_add_icon = !node.clicked_add_icon 
         }
     }
     else{
@@ -75,12 +96,15 @@ node_update :: proc(node: ^Node){
 
     if node.clicked_add_icon{
 
-        if collission_mouse_rect(node.select_task_rect){
+        if collission_mouse_rect(node.select_task_rect) && len(node.elements) < 10{
             node.select_task_color = rl.Color{247, 166, 213, 255}
 
             if rl.IsMouseButtonPressed(.LEFT){
                 node.writing_task = true
             }
+        }
+        else if len(node.elements) == 10{
+            node.select_task_color = rl.Color{181, 161, 173, 255}
         }
         else{
             node.select_task_color = rl.PINK
@@ -99,19 +123,34 @@ node_update :: proc(node: ^Node){
     }
 
     regenerate_rects := false
+    deleted_element_threshhold := f32(0.0)
     for element, i in node.elements{
         if collission_mouse_rect(element.checkbox_rect){
             if rl.IsMouseButtonPressed(.LEFT){
+                deleted_element_threshhold = rect_with_outline(element.element_rect).y
                 delete(element.task)
                 ordered_remove(&node.elements, i)
                 regenerate_rects = true
+                break
             }
         }
     }
     if regenerate_rects{
-        for &element, i in node.elements{
-            regenerate_element_rects(node.body_rect, &element, i)
+        for &element in node.elements{
+            if rect_with_outline(element.element_rect).y > deleted_element_threshhold{
+                element.element_rect.y -= ElementHeight
+                element.checkbox_rect, element.task_rect = slice_rect(element.element_rect, 0.1)
+            }
         }
+        for &batch in node.batches{
+            if batch.rect_with_outline.y > deleted_element_threshhold{
+                batch.rect_with_outline.y -= BatchHeight
+                batch.rect.y -= BatchHeight
+            }
+        }
+
+        node.horizontal_cursor -= ElementHeight
+        regenerate_rects = false
     }
 
 }
@@ -132,6 +171,10 @@ node_render :: proc(node: Node){
 
         padding := rl.Vector2{10.0, 10.0}
         adjust_and_draw_text(element.task, element.task_rect, padding, 30.0)
+    }
+
+    for batch in node.batches{
+        rl.DrawRectangleRec(batch.rect, rl.WHITE)
     }
 
     rl.DrawRectangleRec(node.footer_rect, node.header_color)

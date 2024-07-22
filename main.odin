@@ -38,8 +38,14 @@ main :: proc(){
     node.select_task_rect = rect_without_outline(select_task_outline, 10.0)
     node.select_batch_rect = rect_without_outline(select_batch_outline, 10.0)
 
+    ElementHeight = node.body_rect.height / f32(MaxElementDisplay)
+    //BatchHeight = node.body_rect.height * 2 / f32(MaxElementDisplay)
+    BatchHeight = ElementHeight
+
     buf: [dynamic]rl.KeyboardKey
-    //generate_10_random_tasks(&node)
+    if ElementHeight == 0 || BatchHeight == 0{
+        assert(false, "forgor to setup ElementHeight or BatchHeight")
+    }
     for !rl.WindowShouldClose(){
 
         node_update(&node)
@@ -50,6 +56,10 @@ main :: proc(){
         if rl.IsKeyPressed(.B) && !node.adding_batch{
             node.adding_batch = true
             _ = rl.GetKeyPressed()
+        }
+
+        if rl.IsKeyPressed(.P) && len(node.elements) == 0{
+            generate_10_random_tasks(&node)
         }
 
         rl.BeginDrawing()
@@ -68,7 +78,7 @@ main :: proc(){
         }
         if node.adding_batch{
             if str, ok := input_panel("What's the batch name?", &buf); ok{
-                //add_element(&node, strings.clone(str))
+                add_batch(&node, strings.clone(str))
 
                 node.adding_batch = false
                 clear(&buf)
@@ -84,6 +94,11 @@ main :: proc(){
         delete(element.task)
     }
     delete(node.elements)
+    for batch in node.batches{
+        delete(batch.name)
+        delete(batch.indicies)
+    }
+    delete(node.batches)
 
     rl.CloseWindow()
 
