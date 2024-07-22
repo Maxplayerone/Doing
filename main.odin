@@ -34,11 +34,13 @@ main :: proc(){
     node.add_icon_rect = {node.footer_rect.x + node.footer_rect.width - 72.0, node.footer_rect.y + node.footer_rect.height  - 72.0, 64.0, 64.0}
 
     buf: [dynamic]rl.KeyboardKey
+    generate_10_random_tasks(&node)
     for !rl.WindowShouldClose(){
 
         node_update(&node)
         if rl.IsKeyPressed(.N) && len(node.elements) < 10 && !node.writing_task{
             node.writing_task = true 
+            _ = rl.GetKeyPressed()
         }
 
         rl.BeginDrawing()
@@ -47,8 +49,10 @@ main :: proc(){
         node_render(node)
         if node.writing_task{
             if str, ok := input_panel("Write a task", &buf); ok{
-                append(&node.elements, strings.clone(str))
+                add_element(&node, strings.clone(str))
+
                 node.writing_task = false
+                clear(&buf)
             }
         }
 
@@ -58,7 +62,7 @@ main :: proc(){
     }
     delete(buf)
     for element in node.elements{
-        delete(element)
+        delete(element.task)
     }
     delete(node.elements)
 

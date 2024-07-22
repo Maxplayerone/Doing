@@ -5,6 +5,31 @@ import rl "vendor:raylib"
 import "core:strings"
 import "core:fmt"
 
+Element :: struct{
+    element_rect: rl.Rectangle,
+    checkbox_rect: rl.Rectangle,
+    task_rect: rl.Rectangle,
+    task: string,
+}
+
+add_element :: proc(node: ^Node, name: string){
+    element: Element
+
+    element_height := node.body_rect.height / 10
+    element_rect_with_outline := rl.Rectangle{node.body_rect.x, node.body_rect.y + f32(len(node.elements)) * element_height,node.body_rect.width, element_height}
+    element.element_rect = rect_without_outline(element_rect_with_outline)
+    element.checkbox_rect, element.task_rect = slice_rect(element.element_rect, 0.1)
+    element.task = name
+    append(&node.elements, element)
+}
+
+regenerate_element_rects :: proc(body_rect: rl.Rectangle, element: ^Element, i: int){
+    element_height := body_rect.height / 10
+    element_rect_with_outline := rl.Rectangle{body_rect.x, body_rect.y + f32(i) * element_height, body_rect.width, element_height}
+    element.element_rect = rect_without_outline(element_rect_with_outline)
+    element.checkbox_rect, element.task_rect = slice_rect(element.element_rect, 0.1)
+}
+
 Node :: struct{
     rect: rl.Rectangle,
     bg_color: rl.Color,
@@ -14,7 +39,7 @@ Node :: struct{
     header_color: rl.Color,
 
     body_rect: rl.Rectangle,
-    elements: [dynamic]string,
+    elements: [dynamic]Element,
     writing_task: bool,
 
     footer_rect: rl.Rectangle,
@@ -36,6 +61,23 @@ node_update :: proc(node: ^Node){
     else{
         node.add_icon_color = rl.WHITE
     }
+
+    regenerate_rects := false
+    for element, i in node.elements{
+        if collission_mouse_rect(element.checkbox_rect){
+            if rl.IsMouseButtonPressed(.LEFT){
+                delete(element.task)
+                ordered_remove(&node.elements, i)
+                regenerate_rects = true
+            }
+        }
+    }
+    if regenerate_rects{
+        for &element, i in node.elements{
+            regenerate_element_rects(node.body_rect, &element, i)
+        }
+    }
+
 }
 
 node_render :: proc(node: Node){
@@ -47,14 +89,13 @@ node_render :: proc(node: Node){
     adjust_and_draw_text(node.title, node.header_rect, header_padding)
 
     rl.DrawRectangleRec(node.body_rect, node.header_color)
-    for str, i in node.elements{
-        element_height := node.body_rect.height / 10
-        element_rect_with_outline := rl.Rectangle{node.body_rect.x, node.body_rect.y + f32(i) * element_height,node.body_rect.width, element_height}
-        element_rect := rect_without_outline(element_rect_with_outline)
-        rl.DrawRectangleRec(element_rect, rl.RED)
+    for element in node.elements{
+        rl.DrawRectangleRec(element.checkbox_rect, rl.ORANGE)
+        rl.DrawRectangleRec(element.task_rect, rl.LIME)
 
-        padding := rl.Vector2{element_rect.x / 4, 0.0}
-        adjust_and_draw_text(str, element_rect, padding, 30.0)
+
+        padding := rl.Vector2{10.0, 10.0}
+        adjust_and_draw_text(element.task, element.task_rect, padding, 30.0)
     }
 
     rl.DrawRectangleRec(node.footer_rect, node.header_color)

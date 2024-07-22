@@ -23,6 +23,9 @@ input_panel :: proc(header: string, buf: ^[dynamic]rl.KeyboardKey) -> (string, b
         else if key == .ENTER{
             clicked_enter = true
         }
+        else if key == .LEFT_SHIFT{
+            //ignore
+        }
         else{
             append(buf, key)
         }

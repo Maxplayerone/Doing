@@ -6,6 +6,13 @@ slice_rect_ver :: proc(rect: rl.Rectangle, slice_percentage: f32, offset_percent
     return rl.Rectangle{rect.x, rect.y + rect.height * offset_percentage, rect.width, rect.height * slice_percentage}
 }
 
+//slice_rect_hor :: proc(rect: rl.Rectangle, )
+slice_rect :: proc(rect: rl.Rectangle, slice_percentage: f32) -> (rl.Rectangle, rl.Rectangle){
+    rect1 := rl.Rectangle{rect.x, rect.y, rect.width * slice_percentage, rect.height}
+    rect2 := rl.Rectangle{rect.x + rect.width * slice_percentage, rect.y, rect.width * (1.0 - slice_percentage), rect.height}
+    return rect1, rect2
+}
+
 rect_without_outline :: proc(rect: rl.Rectangle, offset: f32 = 5.0) -> rl.Rectangle{
     return {rect.x + offset, rect.y + offset, rect.width - 2 * offset, rect.height - 2 * offset}
 }
