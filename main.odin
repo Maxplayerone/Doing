@@ -31,10 +31,15 @@ main :: proc(){
     node.header_rect = rect_without_outline(slice_rect_ver(node.rect, header_rel_size, 0.0))
     node.body_rect = rect_without_outline(slice_rect_ver(node.rect, body_rel_size, header_rel_size))
     node.footer_rect = rect_without_outline(slice_rect_ver(node.rect, footer_rel_size, header_rel_size + body_rel_size))
-    node.add_icon_rect = {node.footer_rect.x + node.footer_rect.width - 72.0, node.footer_rect.y + node.footer_rect.height  - 72.0, 64.0, 64.0}
+    node.add_icon_rect = {node.footer_rect.x + 16.0, node.footer_rect.y + node.footer_rect.height  - 72.0, 64.0, 64.0}
+
+    footer_rect_no_icon := rl.Rectangle{node.footer_rect.x + 80.0, node.footer_rect.y, node.footer_rect.width - 80.0, node.footer_rect.height}
+    select_task_outline, select_batch_outline := slice_rect(footer_rect_no_icon, 0.5)
+    node.select_task_rect = rect_without_outline(select_task_outline, 10.0)
+    node.select_batch_rect = rect_without_outline(select_batch_outline, 10.0)
 
     buf: [dynamic]rl.KeyboardKey
-    generate_10_random_tasks(&node)
+    //generate_10_random_tasks(&node)
     for !rl.WindowShouldClose(){
 
         node_update(&node)
@@ -42,16 +47,30 @@ main :: proc(){
             node.writing_task = true 
             _ = rl.GetKeyPressed()
         }
+        if rl.IsKeyPressed(.B) && !node.adding_batch{
+            node.adding_batch = true
+            _ = rl.GetKeyPressed()
+        }
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.Color{214, 214, 214, 255})
 
         node_render(node)
+
+        //it is in render because the input panel has to render over the node
         if node.writing_task{
             if str, ok := input_panel("Write a task", &buf); ok{
                 add_element(&node, strings.clone(str))
 
                 node.writing_task = false
+                clear(&buf)
+            }
+        }
+        if node.adding_batch{
+            if str, ok := input_panel("What's the batch name?", &buf); ok{
+                //add_element(&node, strings.clone(str))
+
+                node.adding_batch = false
                 clear(&buf)
             }
         }

@@ -39,13 +39,23 @@ Node :: struct{
     header_color: rl.Color,
 
     body_rect: rl.Rectangle,
-    elements: [dynamic]Element,
+    //elements: [dynamic]Element,
     writing_task: bool,
+    adding_batch: bool,
+
+    batches: [dynamic][dynamic]Element,
 
     footer_rect: rl.Rectangle,
+
     add_icon: rl.Texture2D,
     add_icon_rect: rl.Rectangle,
     add_icon_color: rl.Color,
+
+    select_task_rect: rl.Rectangle,
+    select_task_color: rl.Color,
+    select_batch_rect: rl.Rectangle,
+    select_batch_color: rl.Color,
+    clicked_add_icon: bool,
 }
 
 node_update :: proc(node: ^Node){
@@ -53,13 +63,39 @@ node_update :: proc(node: ^Node){
         node.add_icon_color = rl.GRAY
 
         if rl.IsMouseButtonPressed(.LEFT){
-            if len(node.elements) < 10{
-                node.writing_task = true
+            if len(node.batches[0]) < 10{
+                //node.writing_task = true
+                node.clicked_add_icon = !node.clicked_add_icon 
             }
         }
     }
     else{
         node.add_icon_color = rl.WHITE
+    }
+
+    if node.clicked_add_icon{
+
+        if collission_mouse_rect(node.select_task_rect){
+            node.select_task_color = rl.Color{247, 166, 213, 255}
+
+            if rl.IsMouseButtonPressed(.LEFT){
+                node.writing_task = true
+            }
+        }
+        else{
+            node.select_task_color = rl.PINK
+        }
+
+        if collission_mouse_rect(node.select_batch_rect){
+            node.select_batch_color = rl.Color{229, 191, 255, 255}
+
+            if rl.IsMouseButtonPressed(.LEFT){
+                node.adding_batch = true
+            }
+        }
+        else{
+            node.select_batch_color = rl.PURPLE
+        }
     }
 
     regenerate_rects := false
@@ -100,4 +136,11 @@ node_render :: proc(node: Node){
 
     rl.DrawRectangleRec(node.footer_rect, node.header_color)
     draw_texture_on_rect(node.add_icon_rect, node.add_icon, node.add_icon_color)
+
+    if node.clicked_add_icon{
+        rl.DrawRectangleRec(node.select_task_rect, node.select_task_color)
+        adjust_and_draw_text("Add task", node.select_task_rect, {10.0, 10.0})
+        rl.DrawRectangleRec(node.select_batch_rect, node.select_batch_color)
+        adjust_and_draw_text("Add batch", node.select_batch_rect, {10.0, 10.0})
+    }
 }
