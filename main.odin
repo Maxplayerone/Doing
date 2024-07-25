@@ -18,9 +18,6 @@ main :: proc() {
 	rl.SetWindowPosition(10, 30)
 	rl.SetTargetFPS(60)
 
-	target := rl.LoadRenderTexture(Width, Height)
-	rl.SetTextureFilter(target.texture, .BILINEAR)
-
 	node := Node {
 		rect           = rl.Rectangle{Width / 2 - 300, Height / 2 - 450, 600, 900},
 		bg_color       = rl.Color{38, 38, 38, 255},
@@ -67,7 +64,6 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
-		scale := min(f32(rl.GetScreenWidth()) / Width, f32(rl.GetScreenHeight()) / Height)
 
 		node_update(&node)
 		if rl.IsKeyPressed(.N) &&
@@ -86,8 +82,9 @@ main :: proc() {
 			generate_10_random_tasks(&node)
 		}
 
-		//drawing
-		rl.BeginTextureMode(target)
+		rl.BeginDrawing()
+		rl.ClearBackground(rl.Color{214, 214, 214, 255})
+
 		node_render(node)
 
 		//it is in render because the input panel has to render over the node
@@ -108,41 +105,17 @@ main :: proc() {
 			}
 		}
 
-		rl.EndTextureMode()
-		//drawing to the texture
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.Color{214, 214, 214, 255})
-
-		rl.DrawTexturePro(
-			target.texture,
-			{0.0, 0.0, f32(target.texture.width), -f32(target.texture.height)},
-			{
-				(f32(rl.GetScreenWidth()) - Width * scale) * 0.5,
-				(f32(rl.GetScreenHeight()) - Height * scale) * 0.5,
-				Width * scale,
-				Height * scale,
-			},
-			{0.0, 0.0},
-			0.0,
-			rl.WHITE,
-		)
+		fmt.println(node.held_element)
 
 		rl.EndDrawing()
 
-		//cleanup
-		//fmt.println(node.held_element)
-		fmt.println(Width * scale, Width * scale)
-
 		free_all(context.temp_allocator)
 	}
-
 	delete(buf)
-
 	for element in node.elements {
 		delete(element.task)
 	}
 	delete(node.elements)
-
 	for batch in node.batches {
 		delete(batch.name)
 		delete(batch.indicies)

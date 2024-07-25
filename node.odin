@@ -33,6 +33,10 @@ add_element :: proc(node: ^Node, name: string) {
 	append(&node.elements, element)
 }
 
+regenerate_element_rects :: proc(element: ^Element) {
+	element.checkbox_rect, element.task_rect = split_rect(element.element_rect, 0.1)
+}
+
 Batch :: struct {
 	indicies:          [dynamic]int,
 	name:              string,
@@ -120,7 +124,9 @@ node_update :: proc(node: ^Node) {
 	regenerate_rects := false
 	deleted_element_threshhold := f32(0.0)
 	for element, i in node.elements {
-		if rl.IsMouseButtonDown(.LEFT) {
+		if rl.IsMouseButtonDown(.LEFT) &&
+		   collission_mouse_rect(element.element_rect) &&
+		   node.held_element == -1 {
 			node.held_element = i
 		}
 
@@ -135,6 +141,12 @@ node_update :: proc(node: ^Node) {
 			}
 		}
 	}
+
+	if rl.IsMouseButtonReleased(.LEFT) {
+		node.held_element = -1
+	}
+
+
 	if regenerate_rects {
 		for &element in node.elements {
 			if rect_with_outline(element.element_rect).y > deleted_element_threshhold {
@@ -152,6 +164,13 @@ node_update :: proc(node: ^Node) {
 
 		node.horizontal_cursor -= ElementHeight
 		regenerate_rects = false
+	}
+
+	if node.held_element != -1 {
+		mouse := rl.GetMousePosition()
+		node.elements[node.held_element].element_rect.x = mouse.x
+		node.elements[node.held_element].element_rect.y = mouse.y
+		regenerate_element_rects(&node.elements[node.held_element])
 	}
 }
 
