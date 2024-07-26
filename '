@@ -20,8 +20,9 @@ ColoredTexturedRect :: struct {
 }
 
 Element :: struct {
-	rect: rl.Rectangle,
-	task: string,
+	rect:   rl.Rectangle,
+	task:   string,
+	render: bool,
 }
 
 add_element :: proc(node: ^Node, str: string) {
@@ -31,35 +32,28 @@ add_element :: proc(node: ^Node, str: string) {
 	rect.y = f32(len(node.elements)) * ElementHeight + node.body.y
 	rect.width = node.body.width
 	rect.height = ElementHeight
-	e := Element{rect_without_outline(rect), str}
+	e := Element{rect_without_outline(rect), str, true}
 	append(&node.elements, e)
 }
 
 Node :: struct {
 	//rects (and title)
-	bg:                  ColoredRect,
-	title:               string,
-	header:              rl.Rectangle,
-	body:                rl.Rectangle,
-	footer:              rl.Rectangle,
-	color:               rl.Color,
-	add_icon:            ColoredTexturedRect,
-	select_task:         ColoredRect,
-	select_batch:        ColoredRect,
+	bg:                ColoredRect,
+	title:             string,
+	header:            rl.Rectangle,
+	body:              rl.Rectangle,
+	footer:            rl.Rectangle,
+	color:             rl.Color,
+	add_icon:          ColoredTexturedRect,
+	select_task:       ColoredRect,
+	select_batch:      ColoredRect,
 	//other
-	elements:            [dynamic]Element,
-	held_element_idx:    int,
-	held_element_offset: int,
-	held_element_copy:   Element,
-	writing_task:        bool,
-	adding_batch:        bool,
-	clicked_add_icon:    bool,
-}
-
-swap_elements :: proc(node: ^Node, idx1, idx2: int) {
-	tmp := node.elements[idx1]
-	node.elements[idx1] = node.elements[idx2]
-	node.elements[idx2] = tmp
+	elements:          [dynamic]Element,
+	held_element_idx:  int,
+	held_element_copy: Element,
+	writing_task:      bool,
+	adding_batch:      bool,
+	clicked_add_icon:  bool,
 }
 
 node_update :: proc(node: ^Node) {
@@ -107,7 +101,7 @@ node_update :: proc(node: ^Node) {
 		   rl.IsMouseButtonDown(.LEFT) &&
 		   node.held_element_idx == -1 {
 			node.held_element_copy = node.elements[i]
-
+			node.elements[i].render = false
 			node.held_element_idx = i
 		}
 	}
@@ -115,31 +109,15 @@ node_update :: proc(node: ^Node) {
 	if rl.IsMouseButtonReleased(.LEFT) {
 		//some element is picked and we have to let it go
 		if node.held_element_idx != -1 {
-			collided_elements := node.held_element_offset + node.held_element_idx
-
-			//fmt.println(collided_elements, node.held_element_idx, node.held_element_offset)
-			//fmt.println("\n")
-			for i in 0 ..< (-node.held_element_offset) {
-				swap_elements(node, collided_elements + i, node.held_element_idx)
-			}
-
-			node.held_element_offset = 0
-
-			/*
-			for element, i in node.elements {
-				fmt.println("Element ", i, " ", element)
-			}
-			fmt.println("\n\n\n")
-			*/
 		}
 
-
+		node.elements[node.held_element_idx].render = true
+		node.elements[node.held_element_idx].rect = node.held_element_copy.rect
 		node.held_element_idx = -1
 	}
 
 	if node.held_element_idx != -1 {
 		node.held_element_copy.rect.y += rl.GetMouseDelta().y
-		//collission with vertical body rect walls
 		if node.held_element_copy.rect.y < node.body.y {
 			node.held_element_copy.rect.y = node.body.y
 		}
@@ -155,15 +133,15 @@ node_update :: proc(node: ^Node) {
 			}
 
 			if rl.CheckCollisionPointRec(rl.GetMousePosition(), element.rect) {
-				diff_y := sign(node.elements[node.held_element_idx].rect.y - element.rect.y)
+				diff_y := node.elements[node.held_element_idx].rect.y - element.rect.y
 				//colliding with elements higher than the held element 
 				if diff_y > 0.0 {
-					node.elements[node.held_element_idx - 1 + node.held_element_offset].rect.y +=
-						ElementHeight
-					node.elements[node.held_element_idx].rect.y -= ElementHeight
-					node.held_element_offset -= 1
+					for j in i ..= node.held_element_idx {
+						node.elements[j].rect.y += diff_y
+					}
 					break
 				}
+				fmt.println("Diff y ", diff_y)
 				//break
 			}
 
@@ -180,8 +158,8 @@ node_render :: proc(node: Node) {
 	adjust_and_draw_text(node.title, node.header, header_padding)
 
 	rl.DrawRectangleRec(node.body, node.color)
-	for element, i in node.elements {
-		if i == node.held_element_idx {
+	for element in node.elements {
+		if !element.render {
 			rl.DrawRectangleRec(element.rect, rl.RED)
 			continue
 		}

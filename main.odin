@@ -9,9 +9,11 @@ Width :: 1280
 Height :: 960
 
 generate_5_tasks :: proc(node: ^Node) {
-	for i in 0 ..< 5 {
-		add_element(node, "task")
-	}
+	add_element(node, "1")
+	add_element(node, "2")
+	add_element(node, "3")
+	add_element(node, "4")
+	add_element(node, "5")
 }
 
 main :: proc() {
