@@ -20,8 +20,9 @@ ColoredTexturedRect :: struct {
 }
 
 Element :: struct {
-	rect: rl.Rectangle,
-	task: string,
+	rect:   rl.Rectangle,
+	task:   string,
+	render: bool,
 }
 
 add_element :: proc(node: ^Node, str: string) {
@@ -31,26 +32,28 @@ add_element :: proc(node: ^Node, str: string) {
 	rect.y = f32(len(node.elements)) * ElementHeight + node.body.y
 	rect.width = node.body.width
 	rect.height = ElementHeight
-	e := Element{rect, str}
+	e := Element{rect_without_outline(rect), str, true}
 	append(&node.elements, e)
 }
 
 Node :: struct {
 	//rects (and title)
-	bg:               ColoredRect,
-	title:            string,
-	header:           rl.Rectangle,
-	body:             rl.Rectangle,
-	footer:           rl.Rectangle,
-	color:            rl.Color,
-	add_icon:         ColoredTexturedRect,
-	select_task:      ColoredRect,
-	select_batch:     ColoredRect,
+	bg:                ColoredRect,
+	title:             string,
+	header:            rl.Rectangle,
+	body:              rl.Rectangle,
+	footer:            rl.Rectangle,
+	color:             rl.Color,
+	add_icon:          ColoredTexturedRect,
+	select_task:       ColoredRect,
+	select_batch:      ColoredRect,
 	//other
-	elements:         [dynamic]Element,
-	writing_task:     bool,
-	adding_batch:     bool,
-	clicked_add_icon: bool,
+	elements:          [dynamic]Element,
+	held_element_idx:  int,
+	held_element_copy: Element,
+	writing_task:      bool,
+	adding_batch:      bool,
+	clicked_add_icon:  bool,
 }
 
 node_update :: proc(node: ^Node) {
@@ -78,17 +81,70 @@ node_update :: proc(node: ^Node) {
 			node.select_task.color = rl.PINK
 		}
 
-		if collission_mouse_rect(node.select_batch.rect) {
+		if collission_mouse_rect(node.select_batch.rect) && len(node.elements) < 10 {
 			node.select_batch.color = rl.Color{229, 191, 255, 255}
 
 			if rl.IsMouseButtonPressed(.LEFT) {
 				node.adding_batch = true
 			}
+		} else if len(node.elements) == 10 {
+			node.select_batch.color = rl.Color{181, 161, 173, 255}
 		} else {
 			node.select_batch.color = rl.PURPLE
 		}
 	}
 
+
+	//-----------held item shenanigans-----------
+	for element, i in node.elements {
+		if collission_mouse_rect(element.rect) &&
+		   rl.IsMouseButtonDown(.LEFT) &&
+		   node.held_element_idx == -1 {
+			node.held_element_copy = node.elements[i]
+			node.elements[i].render = false
+			node.held_element_idx = i
+		}
+	}
+
+	if rl.IsMouseButtonReleased(.LEFT) {
+		//some element is picked and we have to let it go
+		if node.held_element_idx != -1 {
+		}
+
+		node.elements[node.held_element_idx].render = true
+		node.elements[node.held_element_idx].rect = node.held_element_copy.rect
+		node.held_element_idx = -1
+	}
+
+	if node.held_element_idx != -1 {
+		node.held_element_copy.rect.y += rl.GetMouseDelta().y
+		if node.held_element_copy.rect.y < node.body.y {
+			node.held_element_copy.rect.y = node.body.y
+		}
+		if node.held_element_copy.rect.y + node.held_element_copy.rect.height >
+		   node.body.y + node.body.height {
+			node.held_element_copy.rect.y =
+				node.body.y + node.body.height - node.held_element_copy.rect.height
+		}
+
+		for element, i in node.elements {
+			if same_rect(node.elements[node.held_element_idx].rect, element.rect) {
+				continue
+			}
+
+			if rl.CheckCollisionPointRec(rl.GetMousePosition(), element.rect) {
+				/*
+				for j in i ..< len(node.elements) {
+					rect_with_outline := rect_with_outline(node.elements[i].rect)
+					rect_with_outline.y += ElementHeight
+					node.elements[i].rect = rect_without_outline(rect_with_outline)
+				}
+				*/
+				//break
+			}
+
+		}
+	}
 }
 
 node_render :: proc(node: Node) {
@@ -101,13 +157,16 @@ node_render :: proc(node: Node) {
 
 	rl.DrawRectangleRec(node.body, node.color)
 	for element in node.elements {
+		if !element.render {
+			continue
+		}
 		//rl.DrawRectangleRec(element.checkbox.rect, rl.ORANGE)
 		//rl.DrawRectangleRec(element.task.rect, rl.LIME)
 
+		rl.DrawRectangleRec(element.rect, rl.ORANGE)
 
-		//padding := rl.Vector2{10.0, 10.0}
-		//adjust_and_draw_text(element.task, element.task_rect, padding, 30.0)
-		rl.DrawRectangleRec(rect_without_outline(element.rect), rl.ORANGE)
+		padding := rl.Vector2{10.0, 10.0}
+		adjust_and_draw_text(element.task, element.rect, padding, 30.0)
 	}
 
 
@@ -119,5 +178,17 @@ node_render :: proc(node: Node) {
 		adjust_and_draw_text("Add task", node.select_task.rect, {10.0, 10.0})
 		rl.DrawRectangleRec(node.select_batch.rect, node.select_batch.color)
 		adjust_and_draw_text("Add batch", node.select_batch.rect, {10.0, 10.0})
+	}
+
+	if node.held_element_idx != -1 {
+		rl.DrawRectangleRec(node.held_element_copy.rect, rl.ORANGE)
+
+		padding := rl.Vector2{10.0, 10.0}
+		adjust_and_draw_text(
+			node.held_element_copy.task,
+			node.held_element_copy.rect,
+			padding,
+			30.0,
+		)
 	}
 }

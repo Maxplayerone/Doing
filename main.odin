@@ -8,6 +8,12 @@ import rl "vendor:raylib"
 Width :: 1280
 Height :: 960
 
+generate_5_tasks :: proc(node: ^Node) {
+	for i in 0 ..< 5 {
+		add_element(node, "task")
+	}
+}
+
 main :: proc() {
 	tracking_allocator: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
@@ -19,12 +25,13 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 
 	node := Node {
-		bg    = {
+		bg               = {
 			rl.Rectangle{Width / 2 - 300, Height / 2 - 450, 600, 900},
 			rl.Color{38, 38, 38, 255},
 		},
-		color = rl.Color{65, 65, 65, 255},
-		title = "default node",
+		color            = rl.Color{65, 65, 65, 255},
+		title            = "default node",
+		held_element_idx = -1,
 	}
 	header_rel_size := f32(0.15)
 	body_rel_size := f32(0.75)
@@ -58,6 +65,8 @@ main :: proc() {
 		assert(false, "forgor to setup ElementHeight or BatchHeight")
 	}
 
+	generate_5_tasks(&node)
+
 	for !rl.WindowShouldClose() {
 
 		node_update(&node)
@@ -68,7 +77,10 @@ main :: proc() {
 			node.writing_task = true
 			_ = rl.GetKeyPressed()
 		}
-		if rl.IsKeyPressed(.B) && !node.adding_batch && !node.writing_task {
+		if rl.IsKeyPressed(.B) &&
+		   !node.adding_batch &&
+		   !node.writing_task &&
+		   len(node.elements) < 10 {
 			node.adding_batch = true
 			_ = rl.GetKeyPressed()
 		}
