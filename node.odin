@@ -147,15 +147,11 @@ node_update :: proc(node: ^Node) {
 
 			if rl.CheckCollisionPointRec(rl.GetMousePosition(), element.rect) {
 				diff_y := sign(node.elements[node.held_element_idx].rect.y - element.rect.y)
-				if diff_y > 0.0 {
-					node.elements[i].rect.y += ElementHeight
-					node.elements[node.held_element_idx].rect.y -= ElementHeight
-					node.held_element_offset -= 1
-				} else {
-					node.elements[i].rect.y -= ElementHeight
-					node.elements[node.held_element_idx].rect.y += ElementHeight
-					node.held_element_offset += 1
-				}
+
+				node.elements[i].rect.y += ElementHeight * diff_y
+				node.elements[node.held_element_idx].rect.y -= ElementHeight * diff_y
+				node.held_element_offset += int(diff_y)
+
 				break
 			}
 
