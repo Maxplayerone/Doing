@@ -115,22 +115,13 @@ node_update :: proc(node: ^Node) {
 	if rl.IsMouseButtonReleased(.LEFT) {
 		//some element is picked and we have to let it go
 		if node.held_element_idx != -1 {
-			collided_elements := node.held_element_offset + node.held_element_idx
+			collided_elements := abs(node.held_element_offset) + node.held_element_idx
 
-			//fmt.println(collided_elements, node.held_element_idx, node.held_element_offset)
-			//fmt.println("\n")
-			for i in 0 ..< (-node.held_element_offset) {
+			for i in 0 ..< (-abs(node.held_element_offset)) {
 				swap_elements(node, collided_elements + i, node.held_element_idx)
 			}
 
 			node.held_element_offset = 0
-
-			/*
-			for element, i in node.elements {
-				fmt.println("Element ", i, " ", element)
-			}
-			fmt.println("\n\n\n")
-			*/
 		}
 
 
@@ -156,15 +147,16 @@ node_update :: proc(node: ^Node) {
 
 			if rl.CheckCollisionPointRec(rl.GetMousePosition(), element.rect) {
 				diff_y := sign(node.elements[node.held_element_idx].rect.y - element.rect.y)
-				//colliding with elements higher than the held element 
 				if diff_y > 0.0 {
-					node.elements[node.held_element_idx - 1 + node.held_element_offset].rect.y +=
-						ElementHeight
+					node.elements[i].rect.y += ElementHeight
 					node.elements[node.held_element_idx].rect.y -= ElementHeight
 					node.held_element_offset -= 1
-					break
+				} else {
+					node.elements[i].rect.y -= ElementHeight
+					node.elements[node.held_element_idx].rect.y += ElementHeight
+					node.held_element_offset += 1
 				}
-				//break
+				break
 			}
 
 		}
