@@ -100,6 +100,9 @@ Node :: struct {
 	held_element_offset: int,
 	held_element_copy:   Element,
 	in_between_rect:     rl.Rectangle,
+
+	//for rendering batch contents
+	owner:               int,
 }
 
 swap_elements :: proc(node: ^Node, idx1, idx2: int) {
@@ -178,9 +181,13 @@ node_update :: proc(node: ^Node) {
 				if collission_mouse_rect(delete) {
 					t.delete_color = rl.Color{242, 139, 128, 255}
 					if rl.IsMouseButtonPressed(.LEFT) {
+						// NOTE: deleting an element here. Very important
 						ordered_remove(&node.elements, i)
 						for j in i ..< len(node.elements) {
 							node.elements[j].rect.y -= ElementHeight
+						}
+						if i < node.owner {
+							node.owner -= 1
 						}
 					}
 				} else {
@@ -202,6 +209,10 @@ node_update :: proc(node: ^Node) {
 				node.held_element_copy = element
 
 				node.held_element_idx = i
+			}
+
+			if collission_mouse_rect(element.rect) && rl.IsMouseButtonPressed(.RIGHT) {
+				node.owner = i
 			}
 		}
 	}
@@ -265,7 +276,15 @@ node_render :: proc(node: Node) {
 
 	rl.DrawRectangleRec(node.header, node.color)
 	header_padding := rl.Vector2{node.header.width / 4, node.header.height / 4}
-	adjust_and_draw_text(node.title, node.header, header_padding)
+	if node.owner == -1 {
+		adjust_and_draw_text(node.title, node.header, header_padding)
+	} else {
+		adjust_and_draw_text(
+			node.elements[node.owner].type.(Batch).name,
+			node.header,
+			header_padding,
+		)
+	}
 
 	rl.DrawRectangleRec(node.body, node.color)
 	for element, i in node.elements {

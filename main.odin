@@ -34,6 +34,7 @@ main :: proc() {
 		color            = rl.Color{65, 65, 65, 255},
 		title            = "default node",
 		held_element_idx = -1,
+		owner            = -1,
 	}
 	header_rel_size := f32(0.15)
 	body_rel_size := f32(0.75)
