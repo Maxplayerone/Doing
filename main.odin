@@ -8,12 +8,12 @@ import rl "vendor:raylib"
 Width :: 1280
 Height :: 960
 
-generate_5_tasks :: proc(node: ^Node) {
-	add_element(node, "1")
-	add_element(node, "2")
-	add_element(node, "3")
-	add_element(node, "4")
-	add_element(node, "5")
+generate_5_elements :: proc(node: ^Node) {
+	add_element(node, generate_task_type("1"))
+	add_element(node, generate_task_type("2"))
+	add_element(node, generate_batch_type("3"))
+	add_element(node, generate_task_type("4"))
+	add_element(node, generate_batch_type("5"))
 }
 
 main :: proc() {
@@ -67,7 +67,7 @@ main :: proc() {
 		assert(false, "forgor to setup ElementHeight or BatchHeight")
 	}
 
-	generate_5_tasks(&node)
+	generate_5_elements(&node)
 
 	for !rl.WindowShouldClose() {
 
@@ -96,7 +96,7 @@ main :: proc() {
 		//it is in render because the input panel has to render over the node
 		if node.writing_task {
 			if str, ok := input_panel("Write a task", &buf); ok {
-				add_element(&node, strings.clone(str))
+				add_element(&node, generate_task_type(strings.clone(str)))
 
 				node.writing_task = false
 				clear(&buf)
@@ -104,7 +104,7 @@ main :: proc() {
 		}
 		if node.adding_batch {
 			if str, ok := input_panel("What's the batch name?", &buf); ok {
-				add_element(&node, strings.clone(str))
+				add_element(&node, generate_batch_type(strings.clone(str)))
 
 				node.adding_batch = false
 				clear(&buf)
@@ -116,9 +116,6 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 	delete(buf)
-	for element in node.elements {
-		delete(element.task)
-	}
 	delete(node.elements)
 
 	rl.CloseWindow()

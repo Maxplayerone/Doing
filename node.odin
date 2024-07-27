@@ -19,19 +19,48 @@ ColoredTexturedRect :: struct {
 	texture: rl.Texture2D,
 }
 
-Element :: struct {
-	rect: rl.Rectangle,
-	task: string,
+ElementType :: union {
+	Task,
+	Batch,
 }
 
-add_element :: proc(node: ^Node, str: string) {
+TaskColor :: rl.PINK
+Task :: struct {
+	task:  string,
+	color: rl.Color,
+}
+
+generate_task_type :: proc(str: string) -> Task {
+	return Task{task = str, color = TaskColor}
+}
+
+BatchColor :: rl.PURPLE
+Batch :: struct {
+	name:  string,
+	color: rl.Color,
+}
+
+generate_batch_type :: proc(str: string) -> Batch {
+	return Batch{name = str, color = BatchColor}
+}
+
+Element :: struct {
+	rect: rl.Rectangle,
+	type: ElementType,
+}
+
+
+add_element :: proc(node: ^Node, type: ElementType) {
 	rect: rl.Rectangle
 	rect.x = node.body.x
 	// TODO: gonna have to change it when we allow more than 10 elements
 	rect.y = f32(len(node.elements)) * ElementHeight + node.body.y
 	rect.width = node.body.width
 	rect.height = ElementHeight
-	e := Element{rect_without_outline(rect), str}
+	e := Element {
+		rect = rect_without_outline(rect),
+		type = type,
+	}
 	append(&node.elements, e)
 }
 
@@ -48,12 +77,14 @@ Node :: struct {
 	select_batch:        ColoredRect,
 	//other
 	elements:            [dynamic]Element,
-	held_element_idx:    int,
-	held_element_offset: int,
-	held_element_copy:   Element,
 	writing_task:        bool,
 	adding_batch:        bool,
 	clicked_add_icon:    bool,
+	//moving elements around
+	held_element_idx:    int,
+	held_element_offset: int,
+	held_element_copy:   Element,
+	in_between_rect:     rl.Rectangle,
 }
 
 swap_elements :: proc(node: ^Node, idx1, idx2: int) {
@@ -141,7 +172,8 @@ node_update :: proc(node: ^Node) {
 		}
 
 		for element, i in node.elements {
-			if same_rect(node.elements[node.held_element_idx].rect, element.rect) {
+			picked_rect := node.elements[node.held_element_idx].rect
+			if same_rect(picked_rect, element.rect) {
 				continue
 			}
 
@@ -170,16 +202,23 @@ node_render :: proc(node: Node) {
 	rl.DrawRectangleRec(node.body, node.color)
 	for element, i in node.elements {
 		if i == node.held_element_idx {
-			rl.DrawRectangleRec(element.rect, rl.RED)
 			continue
 		}
-		//rl.DrawRectangleRec(element.checkbox.rect, rl.ORANGE)
-		//rl.DrawRectangleRec(element.task.rect, rl.LIME)
 
-		rl.DrawRectangleRec(element.rect, rl.ORANGE)
 
-		padding := rl.Vector2{10.0, 10.0}
-		adjust_and_draw_text(element.task, element.rect, padding, 30.0)
+		switch t in element.type {
+		case Task:
+			rl.DrawRectangleRec(element.rect, t.color)
+
+			padding := rl.Vector2{10.0, 10.0}
+			adjust_and_draw_text(t.task, element.rect, padding, 30.0)
+		case Batch:
+			rl.DrawRectangleRec(element.rect, t.color)
+
+			padding := rl.Vector2{10.0, 10.0}
+			adjust_and_draw_text(t.name, element.rect, padding, 30.0)
+
+		}
 	}
 
 
@@ -193,15 +232,23 @@ node_render :: proc(node: Node) {
 		adjust_and_draw_text("Add batch", node.select_batch.rect, {10.0, 10.0})
 	}
 
-	if node.held_element_idx != -1 {
-		rl.DrawRectangleRec(node.held_element_copy.rect, rl.ORANGE)
+	rl.DrawRectangleRec(node.in_between_rect, rl.PINK)
 
-		padding := rl.Vector2{10.0, 10.0}
-		adjust_and_draw_text(
-			node.held_element_copy.task,
-			node.held_element_copy.rect,
-			padding,
-			30.0,
-		)
+	if node.held_element_idx != -1 {
+
+		copy := node.held_element_copy
+		switch t in copy.type {
+		case Task:
+			rl.DrawRectangleRec(copy.rect, {t.color.r, t.color.g, t.color.b, 125})
+
+			padding := rl.Vector2{10.0, 10.0}
+			adjust_and_draw_text(t.task, copy.rect, padding, 30.0)
+		case Batch:
+			rl.DrawRectangleRec(copy.rect, {t.color.r, t.color.g, t.color.b, 125})
+
+			padding := rl.Vector2{10.0, 10.0}
+			adjust_and_draw_text(t.name, copy.rect, padding, 30.0)
+
+		}
 	}
 }
