@@ -25,28 +25,13 @@ ElementType :: union {
 }
 
 Task :: struct {
-	task:             string,
-	color:            rl.Color,
-	left_color:       rl.Color,
-	ver_split_per:    f32,
-
-	//checkbox stuff
-	checkbox_color:   rl.Color,
-	checkbox_outline: f32,
-	completed:        bool,
-	delete_color:     rl.Color,
+	task:          string,
+	color:         rl.Color,
+	ver_split_per: f32,
 }
 
 generate_task_type :: proc(str: string) -> Task {
-	return Task {
-		task = str,
-		color = rl.PINK,
-		ver_split_per = 0.1,
-		left_color = rl.Color{209, 109, 167, 255},
-		checkbox_color = rl.WHITE,
-		checkbox_outline = 10.0,
-		delete_color = rl.WHITE,
-	}
+	return Task{task = str, color = rl.PINK, ver_split_per = 0.15}
 }
 
 BatchColor :: rl.PURPLE
@@ -146,69 +131,16 @@ node_update :: proc(node: ^Node) {
 		}
 	}
 
-	//----------------updating elements based on their type----------------------
-	for &element, i in node.elements {
-
-		switch &t in element.type {
-		case Task:
-			left, content := split_rect(element.rect, t.ver_split_per)
-			//checkbox
-			if !t.completed {
-				checkbox_collidable := rect_without_outline(left, t.checkbox_outline)
-				if collission_mouse_rect(checkbox_collidable) {
-					t.checkbox_color = rl.LIGHTGRAY
-					if rl.IsMouseButtonPressed(.LEFT) {
-						t.checkbox_color = rl.Color{155, 242, 128, 255}
-						t.completed = true
-					}
-
-				} else {
-					t.checkbox_color = rl.WHITE
-				}
-			} else {
-				checkbox, delete := split_rect_hor(left, 0.5)
-				checkbox = rect_without_outline(checkbox)
-				delete = rect_without_outline(delete)
-
-				if collission_mouse_rect(checkbox) && rl.IsMouseButtonPressed(.LEFT) {
-					t.completed = false
-					t.checkbox_color = rl.WHITE
-				}
-
-				if collission_mouse_rect(delete) {
-					t.delete_color = rl.Color{242, 139, 128, 255}
-					if rl.IsMouseButtonPressed(.LEFT) {
-						ordered_remove(&node.elements, i)
-						for j in i ..< len(node.elements) {
-							node.elements[j].rect.y -= ElementHeight
-						}
-					}
-				} else {
-					t.delete_color = rl.WHITE
-				}
-			}
-			//content
-			if collission_mouse_rect(content) &&
-			   rl.IsMouseButtonDown(.LEFT) &&
-			   node.held_element_idx == -1 {
-				node.held_element_copy = element
-
-				node.held_element_idx = i
-			}
-		case Batch:
-			if collission_mouse_rect(element.rect) &&
-			   rl.IsMouseButtonDown(.LEFT) &&
-			   node.held_element_idx == -1 {
-				node.held_element_copy = element
-
-				node.held_element_idx = i
-			}
-		}
-	}
-
 
 	//-----------held item shenanigans-----------
 	for element, i in node.elements {
+		if collission_mouse_rect(element.rect) &&
+		   rl.IsMouseButtonDown(.LEFT) &&
+		   node.held_element_idx == -1 {
+			node.held_element_copy = node.elements[i]
+
+			node.held_element_idx = i
+		}
 	}
 
 	if rl.IsMouseButtonReleased(.LEFT) {
@@ -257,6 +189,10 @@ node_update :: proc(node: ^Node) {
 
 		}
 	}
+
+
+	//updating elements based on their type
+
 }
 
 node_render :: proc(node: Node) {
@@ -276,27 +212,9 @@ node_render :: proc(node: Node) {
 
 		switch t in element.type {
 		case Task:
-			left, content := split_rect(element.rect, t.ver_split_per)
-
-			//checkbox
-			rl.DrawRectangleRec(left, t.left_color)
-			if t.completed {
-				checkbox, delete := split_rect_hor(left, 0.5)
-				checkbox = rect_without_outline(checkbox)
-				delete = rect_without_outline(delete)
-
-				rl.DrawRectangleRec(checkbox, t.checkbox_color)
-				rl.DrawRectangleRec(delete, t.delete_color)
-			} else {
-				rl.DrawRectangleRec(
-					rect_without_outline(left, t.checkbox_outline),
-					t.checkbox_color,
-				)
-			}
-
-			//content
+			checkbox, content := split_rect(element.rect, t.ver_split_per)
 			rl.DrawRectangleRec(content, t.color)
-
+			rl.DrawRectangleRec(checkbox, rl.ORANGE)
 
 			padding := rl.Vector2{10.0, 10.0}
 			adjust_and_draw_text(t.task, content, padding, 30.0)

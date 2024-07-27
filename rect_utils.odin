@@ -27,7 +27,7 @@ split_rect :: proc(rect: rl.Rectangle, slice_percentage: f32) -> (rl.Rectangle, 
 	return rect1, rect2
 }
 
-split_rect_ver :: proc(rect: rl.Rectangle, slice_percentage: f32) -> (rl.Rectangle, rl.Rectangle) {
+split_rect_hor :: proc(rect: rl.Rectangle, slice_percentage: f32) -> (rl.Rectangle, rl.Rectangle) {
 	rect1 := rl.Rectangle{rect.x, rect.y, rect.width, rect.height * slice_percentage}
 	rect2 := rl.Rectangle {
 		rect.x,

@@ -116,6 +116,15 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 	delete(buf)
+
+	for element in node.elements {
+		switch t in element.type {
+		case Task:
+			delete(t.task)
+		case Batch:
+			delete(t.name)
+		}
+	}
 	delete(node.elements)
 
 	rl.CloseWindow()
