@@ -32,20 +32,19 @@ Task :: struct {
 
 	//checkbox stuff
 	checkbox_color:   rl.Color,
-	checkbox_outline: f32,
-	completed:        bool,
 	delete_color:     rl.Color,
+
+	//fast interaction
+	fast_inter_panel: rl.Rectangle,
 }
 
 generate_task_type :: proc(str: string) -> Task {
 	return Task {
 		task = str,
 		color = rl.PINK,
-		ver_split_per = 0.1,
+		ver_split_per = 0.2,
 		left_color = rl.Color{209, 109, 167, 255},
-		checkbox_color = rl.WHITE,
-		checkbox_outline = 10.0,
-		delete_color = rl.WHITE,
+		fast_inter_panel = {0.0, 0.0, 125.0, 175.0},
 	}
 }
 
@@ -81,28 +80,29 @@ add_element :: proc(node: ^Node, type: ElementType) {
 
 Node :: struct {
 	//rects (and title)
-	bg:                  ColoredRect,
-	title:               string,
-	header:              rl.Rectangle,
-	body:                rl.Rectangle,
-	footer:              rl.Rectangle,
-	color:               rl.Color,
-	add_icon:            ColoredTexturedRect,
-	select_task:         ColoredRect,
-	select_batch:        ColoredRect,
+	bg:                   ColoredRect,
+	title:                string,
+	header:               rl.Rectangle,
+	body:                 rl.Rectangle,
+	footer:               rl.Rectangle,
+	color:                rl.Color,
+	add_icon:             ColoredTexturedRect,
+	select_task:          ColoredRect,
+	select_batch:         ColoredRect,
 	//other
-	elements:            [dynamic]Element,
-	writing_task:        bool,
-	adding_batch:        bool,
-	clicked_add_icon:    bool,
+	elements:             [dynamic]Element,
+	writing_task:         bool,
+	adding_batch:         bool,
+	clicked_add_icon:     bool,
 	//moving elements around
-	held_element_idx:    int,
-	held_element_offset: int,
-	held_element_copy:   Element,
-	in_between_rect:     rl.Rectangle,
+	held_element_idx:     int,
+	held_element_offset:  int,
+	held_element_copy:    Element,
+	in_between_rect:      rl.Rectangle,
 
 	//for rendering batch contents
-	owner:               int,
+	owner:                int,
+	fast_inter_panel_idx: int,
 }
 
 swap_elements :: proc(node: ^Node, idx1, idx2: int) {
@@ -155,45 +155,48 @@ node_update :: proc(node: ^Node) {
 		switch &t in element.type {
 		case Task:
 			left, content := split_rect(element.rect, t.ver_split_per)
-			//checkbox
-			if !t.completed {
-				checkbox_collidable := rect_without_outline(left, t.checkbox_outline)
-				if collission_mouse_rect(checkbox_collidable) {
-					t.checkbox_color = rl.LIGHTGRAY
-					if rl.IsMouseButtonPressed(.LEFT) {
-						t.checkbox_color = rl.Color{155, 242, 128, 255}
-						t.completed = true
+
+			//checkbox and delete
+			checkbox, delete := split_rect(left, 0.5)
+
+			if collission_mouse_rect(checkbox) {
+				t.checkbox_color = rl.Color{155, 242, 128, 255}
+
+				if rl.IsMouseButtonPressed(.LEFT) {
+					// NOTE: deleting an element here. Very important
+					ordered_remove(&node.elements, i)
+					for j in i ..< len(node.elements) {
+						node.elements[j].rect.y -= ElementHeight
+					}
+					if i < node.owner {
+						node.owner -= 1
 					}
 
-				} else {
-					t.checkbox_color = rl.WHITE
+					node.fast_inter_panel_idx = -1
 				}
 			} else {
-				checkbox, delete := split_rect_hor(left, 0.5)
-				checkbox = rect_without_outline(checkbox)
-				delete = rect_without_outline(delete)
-
-				if collission_mouse_rect(checkbox) && rl.IsMouseButtonPressed(.LEFT) {
-					t.completed = false
-					t.checkbox_color = rl.WHITE
-				}
-
-				if collission_mouse_rect(delete) {
-					t.delete_color = rl.Color{242, 139, 128, 255}
-					if rl.IsMouseButtonPressed(.LEFT) {
-						// NOTE: deleting an element here. Very important
-						ordered_remove(&node.elements, i)
-						for j in i ..< len(node.elements) {
-							node.elements[j].rect.y -= ElementHeight
-						}
-						if i < node.owner {
-							node.owner -= 1
-						}
-					}
-				} else {
-					t.delete_color = rl.WHITE
-				}
+				t.checkbox_color = rl.WHITE
 			}
+
+			if collission_mouse_rect(delete) {
+				t.delete_color = rl.Color{242, 139, 128, 255}
+
+				if rl.IsMouseButtonPressed(.LEFT) {
+					// NOTE: deleting an element here. Very important
+					ordered_remove(&node.elements, i)
+					for j in i ..< len(node.elements) {
+						node.elements[j].rect.y -= ElementHeight
+					}
+					if i < node.owner {
+						node.owner -= 1
+					}
+
+					node.fast_inter_panel_idx = -1
+				}
+			} else {
+				t.delete_color = rl.WHITE
+			}
+
 			//content
 			if collission_mouse_rect(content) &&
 			   rl.IsMouseButtonDown(.LEFT) &&
@@ -201,7 +204,22 @@ node_update :: proc(node: ^Node) {
 				node.held_element_copy = element
 
 				node.held_element_idx = i
+
+				node.fast_inter_panel_idx = -1
 			}
+
+			//the whole rect (opening more fast interaction mode via right click)
+			if collission_mouse_rect(element.rect) && rl.IsMouseButtonPressed(.RIGHT) {
+				if node.fast_inter_panel_idx == i {
+					node.fast_inter_panel_idx = -1
+				} else {
+					node.fast_inter_panel_idx = i
+				}
+
+				t.fast_inter_panel.x = rl.GetMousePosition().x
+				t.fast_inter_panel.y = rl.GetMousePosition().y
+			}
+
 		case Batch:
 			if collission_mouse_rect(element.rect) &&
 			   rl.IsMouseButtonDown(.LEFT) &&
@@ -209,18 +227,18 @@ node_update :: proc(node: ^Node) {
 				node.held_element_copy = element
 
 				node.held_element_idx = i
+
+				node.fast_inter_panel_idx = -1
 			}
 
 			if collission_mouse_rect(element.rect) && rl.IsMouseButtonPressed(.RIGHT) {
 				node.owner = i
+
+				node.fast_inter_panel_idx = -1
 			}
 		}
 	}
 
-
-	//-----------held item shenanigans-----------
-	for element, i in node.elements {
-	}
 
 	if rl.IsMouseButtonReleased(.LEFT) {
 		//some element is picked and we have to let it go
@@ -297,28 +315,21 @@ node_render :: proc(node: Node) {
 		case Task:
 			left, content := split_rect(element.rect, t.ver_split_per)
 
-			//checkbox
+			//task util buttons
+			//background color
 			rl.DrawRectangleRec(left, t.left_color)
-			if t.completed {
-				checkbox, delete := split_rect_hor(left, 0.5)
-				checkbox = rect_without_outline(checkbox)
-				delete = rect_without_outline(delete)
 
-				rl.DrawRectangleRec(checkbox, t.checkbox_color)
-				rl.DrawRectangleRec(delete, t.delete_color)
-			} else {
-				rl.DrawRectangleRec(
-					rect_without_outline(left, t.checkbox_outline),
-					t.checkbox_color,
-				)
-			}
+			//checkbox and delete buttons
+			checkbox, delete := split_rect(left, 0.5)
+			rl.DrawRectangleRec(rect_without_outline(checkbox, 8.0), t.checkbox_color)
+			rl.DrawRectangleRec(rect_without_outline(delete, 8.0), t.delete_color)
 
 			//content
 			rl.DrawRectangleRec(content, t.color)
 
-
 			padding := rl.Vector2{10.0, 10.0}
 			adjust_and_draw_text(t.task, content, padding, 30.0)
+
 		case Batch:
 			rl.DrawRectangleRec(element.rect, t.color)
 
@@ -356,6 +367,19 @@ node_render :: proc(node: Node) {
 			padding := rl.Vector2{10.0, 10.0}
 			adjust_and_draw_text(t.name, copy.rect, padding, 30.0)
 
+		}
+	}
+
+	//fast interaction panel
+	if node.fast_inter_panel_idx != -1 {
+		for element, i in node.elements {
+			if node.fast_inter_panel_idx == i {
+				rl.DrawRectangleRec(
+					rect_with_outline(element.type.(Task).fast_inter_panel),
+					rl.WHITE,
+				)
+				rl.DrawRectangleRec(element.type.(Task).fast_inter_panel, node.color)
+			}
 		}
 	}
 }

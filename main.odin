@@ -27,14 +27,15 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 
 	node := Node {
-		bg               = {
+		bg                   = {
 			rl.Rectangle{Width / 2 - 300, Height / 2 - 450, 600, 900},
 			rl.Color{38, 38, 38, 255},
 		},
-		color            = rl.Color{65, 65, 65, 255},
-		title            = "default node",
-		held_element_idx = -1,
-		owner            = -1,
+		color                = rl.Color{65, 65, 65, 255},
+		title                = "default node",
+		held_element_idx     = -1,
+		owner                = -1,
+		fast_inter_panel_idx = -1,
 	}
 	header_rel_size := f32(0.15)
 	body_rel_size := f32(0.75)
